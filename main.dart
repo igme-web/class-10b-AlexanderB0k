@@ -2,11 +2,40 @@ import 'package:flutter/material.dart';
 
 // 1) You need to install this so it works 'flutter pub add http'
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-//This is where we will fetch some sample JSON (have a look at it please)
-final String postURL = "https://jsonplaceholder.typicode.com/posts";
+import 'package:provider/provider.dart';
 
 // 2) ADD your JItem class below (we'll do in class or grab from 10b notes)
+class JItem {
+  final int id;
+  final String title;
+
+  JItem({required this.id, required this.title});
+}
+
+class JItemsProvider extends ChangeNotifier {
+  List<JItem> items = [];
+  final String postURL = "https://jsonplaceholder.typicode.com/posts";
+  Future<void> getData() async {
+    var response = await http.get(Uri.parse(postURL));
+
+    if (response.statusCode == 200) {
+      var data = json.decode(response.body);
+
+      for (var item in data) {
+        items.add(JItem(id: item['id'], title: item['title']));
+      }
+    }
+
+    notifyListeners(); // ADD THIS LINE
+  }
+
+  void clear() {
+    items.clear();
+    notifyListeners();
+  }
+}
 
 void main() {
   runApp(const MainApp());
@@ -17,7 +46,10 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(home: DemoPage());
+    return ChangeNotifierProvider(
+      create: (context) => JItemsProvider(),
+      child: MaterialApp(title: 'Future Provider Example', home: DemoPage()),
+    );
   }
 }
 
@@ -29,50 +61,58 @@ class DemoPage extends StatefulWidget {
 }
 
 class _DemoPageState extends State<DemoPage> {
-
-  //3 Add better type checking here use the <JList> we created
-  List data = [];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Example'), backgroundColor: Colors.blue),
+      appBar: AppBar(
+        title: Text('Future Provider Example'),
+        backgroundColor: Colors.orange,
+      ),
       body: Center(
         child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    // Get data logic here
+                Consumer<JItemsProvider>(
+                  builder: (context, value, child) {
+                    return ElevatedButton(
+                      onPressed: () => value.getData(),
+                      child: Text('Get Data'),
+                    );
                   },
-                  child: Text('Get Data'),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    // Clear data logic here
+                Consumer<JItemsProvider>(
+                  builder: (context, value, child) {
+                    return ElevatedButton(
+                      onPressed: () => value.clear(),
+                      child: Text('Clear Data'),
+                    );
                   },
-                  child: Text('Clear Data'),
                 ),
               ],
             ),
             Expanded(
-              child: ListView.builder(
-                itemCount: data.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text(data[index].id.toString()),
-                    subtitle: Text(data[index].title),
+              child: Consumer<JItemsProvider>(
+                builder: (context, value, child) {
+                  return ListView.builder(
+                    itemCount: value.items.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        title: Text(value.items[index].id.toString()),
+                        subtitle: Text(value.items[index].title),
+                      );
+                    },
                   );
                 },
               ),
             ),
           ],
-        ),
+        ), 
       ),
     );
   }
 }
 
 //4) Create the getData Function here!
+
